@@ -1,4 +1,4 @@
-# Atlas RAG Studio
+# Agentic RAG Studio
 
 An agentic retrieval-augmented generation project designed as a portfolio-ready, production-minded demo for 2026. It includes a modern FastAPI backend, Pinecone vector search, Anthropic LLM orchestration, and a clean React interface for interactive exploration.
 
