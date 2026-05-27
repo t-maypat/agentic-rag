@@ -1,3 +1,4 @@
+from app.core.config import settings
 from app.models import QueryResponse, SourceChunk, TraceStep
 from app.services.llm import generate_answer
 from app.services.retrieval import retrieve_chunks
@@ -16,7 +17,8 @@ def _build_context(chunks: list[SourceChunk]) -> str:
 def answer_question(query: str, top_k: int) -> QueryResponse:
     trace: list[TraceStep] = []
 
-    trace.append(TraceStep(name="retrieve", detail=f"Searching top {top_k} chunks"))
+    mode = "hybrid" if settings.hybrid_search_enabled else "vector"
+    trace.append(TraceStep(name="retrieve", detail=f"Searching top {top_k} chunks ({mode})"))
     chunks = retrieve_chunks(query, top_k)
 
     context = _build_context(chunks)

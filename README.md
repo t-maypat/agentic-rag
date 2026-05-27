@@ -5,9 +5,11 @@ An agentic retrieval-augmented generation project designed as a portfolio-ready,
 ## Features
 - Agentic query flow with retrieval planning, answer synthesis, and trace output
 - Pinecone-backed semantic search with metadata-rich citations
+- Hybrid search (vector + BM25) with configurable weighting
 - Local ingestion pipeline for markdown, text, and JSON inputs
 - Streaming-ready API design and modular services
 - Frontend with sources, confidence signals, and run traces
+- RAGAS evaluation script for retrieval/answer quality
 
 ## Quickstart
 ### Backend
@@ -38,6 +40,9 @@ Sample documents are provided under `data/sample`.
 
 Seed the index with the demo content:
 - `python backend\scripts\seed_demo.py`
+
+Run RAGAS evaluation:
+- `python backend\scripts\ragas_eval.py --data path\to\eval.jsonl`
 
 ## Environment Variables
 Backend:

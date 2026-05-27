@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     max_chunk_chars: int = 1200
     chunk_overlap: int = 200
 
+    hybrid_search_enabled: bool = True
+    hybrid_alpha: float = 0.7
+    bm25_k: int = 10
+    lexical_index_path: str = "backend/data/lexical_index.jsonl"
+
     cors_origins: list[str] = ["http://localhost:5173"]
 
 
