@@ -7,9 +7,11 @@
   --ink: #111116;
   --muted: #6b6b78;
   --card: #ffffff;
-  --accent: #ff7a00;
-  --accent-soft: rgba(255, 122, 0, 0.15);
+  --accent: #ff6a3d;
+  --accent-strong: #ff4b1f;
+  --accent-soft: rgba(255, 106, 61, 0.15);
   --border: rgba(17, 17, 22, 0.1);
+  --panel-shadow: 0 18px 45px rgba(17, 17, 22, 0.08);
 }
 
 * {
@@ -18,7 +20,9 @@
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top, #fff8f1 0%, #f4f0eb 40%, #ece4da 100%);
+  background:
+    radial-gradient(circle at top, #fff4ea 0%, #f6efe7 45%, #efe4d8 100%),
+    linear-gradient(120deg, rgba(255, 228, 198, 0.4), rgba(255, 255, 255, 0));
   color: var(--ink);
 }
 
@@ -54,12 +58,40 @@ h1 {
   max-width: 540px;
 }
 
+.hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.hero-metrics div {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  box-shadow: var(--panel-shadow);
+}
+
+.hero-metrics span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.hero-metrics strong {
+  font-size: 14px;
+}
+
 .hero-card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 24px;
-  box-shadow: 0 20px 50px rgba(17, 17, 22, 0.08);
+  box-shadow: var(--panel-shadow);
 }
 
 .card-title {
@@ -101,6 +133,7 @@ h1 {
   display: flex;
   flex-direction: column;
   min-height: 520px;
+  box-shadow: var(--panel-shadow);
 }
 
 .chat-header {
@@ -147,6 +180,14 @@ h1 {
 .message.user {
   background: #fff4ea;
   border-color: rgba(255, 122, 0, 0.3);
+}
+
+.answer-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-strong);
+  font-weight: 600;
 }
 
 .role {
@@ -200,7 +241,7 @@ h1 {
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 16px 40px rgba(17, 17, 22, 0.06);
+  box-shadow: var(--panel-shadow);
 }
 
 .panel h3 {
@@ -216,18 +257,63 @@ h1 {
   border-top: 1px solid var(--border);
   padding-top: 12px;
   margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.source-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.source-header h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.citation {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
+  margin-right: 8px;
 }
 
 .source-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin: 0;
+}
+
+.source-snippet {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.source-link {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 12px;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(17, 17, 22, 0.2);
+  width: fit-content;
 }
 
 .score {
   font-weight: 600;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
 }
 
 .trace {
@@ -238,6 +324,32 @@ h1 {
   margin-top: 12px;
   font-size: 13px;
   color: var(--muted);
+}
+
+.trace pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.trace-title {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.trace-panel summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+}
+
+.trace-panel summary::-webkit-details-marker {
+  display: none;
 }
 
 @media (max-width: 980px) {

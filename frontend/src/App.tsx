@@ -3,10 +3,33 @@ import { queryAgent } from "./lib/api";
 import type { Message, SourceChunk, TraceStep } from "./lib/types";
 
 const starterQuestions = [
-  "Summarize the product vision",
-  "What does the retrieval pipeline optimize for?",
-  "Which components make this agentic?"
+  "Explain Retrieval-Augmented Generation and why it improves factuality.",
+  "Compare DPR and BM25 for keyword-heavy research queries.",
+  "What does FiD change about multi-passage answer synthesis?",
+  "Summarize ReAct and why it matters for tool-using agents.",
+  "When does HyDE improve retrieval quality?",
+  "Which benchmarks help evaluate embedding models for retrieval?"
 ];
+
+const truncate = (text: string, limit: number) =>
+  text.length > limit ? `${text.slice(0, limit).trim()}...` : text;
+
+const formatAuthors = (authors?: string[] | null) => {
+  if (!authors || authors.length === 0) return null;
+  if (authors.length <= 2) return authors.join(", ");
+  return `${authors[0]} et al.`;
+};
+
+const formatMeta = (source: SourceChunk) => {
+  const parts = [
+    source.section,
+    formatAuthors(source.authors),
+    source.year ? String(source.year) : null,
+    source.source_type,
+    source.source
+  ].filter(Boolean);
+  return parts.join(" | ");
+};
 
 export default function App() {
   const [question, setQuestion] = useState("");
@@ -42,14 +65,28 @@ export default function App() {
     <div className="page">
       <header className="hero">
         <div>
-          <p className="eyebrow">Agentic RAG Portfolio Demo</p>
-          <h1>Atlas RAG Studio</h1>
+          <p className="eyebrow">AI Research Assistant</p>
+          <h1>Research RAG Studio</h1>
           <p className="subtitle">
-            A modern retrieval system that blends Pinecone, Anthropic, and fast local embeddings.
+            Grounded answers over a curated corpus of AI, LLM, and retrieval research.
           </p>
+          <div className="hero-metrics">
+            <div>
+              <span>Corpus</span>
+              <strong>30+ papers and technical docs</strong>
+            </div>
+            <div>
+              <span>Retrieval</span>
+              <strong>Hybrid dense + BM25 with trace</strong>
+            </div>
+            <div>
+              <span>LLM</span>
+              <strong>Gemini-backed synthesis</strong>
+            </div>
+          </div>
         </div>
         <div className="hero-card">
-          <p className="card-title">Suggested prompts</p>
+          <p className="card-title">Suggested research questions</p>
           <div className="prompt-grid">
             {starterQuestions.map((prompt) => (
               <button key={prompt} onClick={() => handleSend(prompt)}>
@@ -63,19 +100,24 @@ export default function App() {
       <main className="layout">
         <section className="chat">
           <div className="chat-header">
-            <span className="badge">Live Agent</span>
-            <p>Ask a question about the demo knowledge base.</p>
+            <span className="badge">Research Agent</span>
+            <p>Ask about papers, retrieval methods, or evaluation frameworks.</p>
           </div>
           <div className="chat-body">
             {messages.length === 0 ? (
               <div className="empty">
-                <h3>Start with a question</h3>
-                <p>Responses include citations and trace steps.</p>
+                <h3>Start with a research question</h3>
+                <p>Answers are grounded in sources with traceable retrieval steps.</p>
               </div>
             ) : (
               messages.map((message, index) => (
                 <div key={index} className={`message ${message.role}`}>
-                  <div className="role">{message.role === "user" ? "You" : "Atlas"}</div>
+                  <div className="role">
+                    {message.role === "user" ? "You" : "Research Assistant"}
+                  </div>
+                  {message.role === "assistant" && (
+                    <div className="answer-label">Answer</div>
+                  )}
                   <div className="content">{message.content}</div>
                 </div>
               ))
@@ -85,7 +127,7 @@ export default function App() {
             <input
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
-              placeholder="Ask about the roadmap, architecture, or retrieval flow"
+              placeholder="Ask about RAG, retrieval papers, or evaluation tradeoffs"
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   handleSend();
@@ -102,32 +144,44 @@ export default function App() {
           <div className="panel">
             <h3>Sources</h3>
             {sources.length === 0 ? (
-              <p className="muted">No sources yet.</p>
+              <p className="muted">Sources appear after the first answer.</p>
             ) : (
-              sources.map((source) => (
-                <div key={source.chunk_id} className="source">
-                  <div className="source-meta">
-                    <span>{source.title || "Untitled"}</span>
-                    <span className="score">{source.score.toFixed(3)}</span>
+              sources.map((source, index) => {
+                const metaLine = formatMeta(source);
+                return (
+                  <div key={source.chunk_id} className="source">
+                    <div className="source-header">
+                      <div>
+                        <span className="citation">[{index + 1}]</span>
+                        <h4>{source.title || "Untitled"}</h4>
+                      </div>
+                      <span className="score">{source.score.toFixed(3)}</span>
+                    </div>
+                    {metaLine && <p className="source-meta">{metaLine}</p>}
+                    <p className="source-snippet">{truncate(source.text, 260)}</p>
+                    {source.url && (
+                      <a className="source-link" href={source.url} target="_blank" rel="noreferrer">
+                        Open source
+                      </a>
+                    )}
                   </div>
-                  <p>{source.text}</p>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
-          <div className="panel">
-            <h3>Trace</h3>
+          <details className="panel trace-panel">
+            <summary>Trace</summary>
             {trace.length === 0 ? (
               <p className="muted">No trace yet.</p>
             ) : (
               trace.map((step, index) => (
                 <div key={`${step.name}-${index}`} className="trace">
-                  <strong>{step.name}</strong>
-                  <span>{step.detail}</span>
+                  <div className="trace-title">{step.name}</div>
+                  <pre>{step.detail}</pre>
                 </div>
               ))
             )}
-          </div>
+          </details>
         </aside>
       </main>
     </div>

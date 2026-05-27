@@ -3,8 +3,7 @@ import json
 from pathlib import Path
 
 from datasets import Dataset
-from langchain_anthropic import ChatAnthropic
-from langchain_community.embeddings import FastEmbedEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from ragas import evaluate
 from ragas.metrics import answer_relevancy, context_precision, context_recall, faithfulness
 
@@ -12,8 +11,8 @@ from app.core.config import settings
 from app.services.agent import answer_question
 
 
-def _load_samples(path: Path) -> list[dict[str, object]]:
-    samples: list[dict[str, object]] = []
+def _load_cases(path: Path) -> list[dict[str, object]]:
+    cases: list[dict[str, object]] = []
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
             payload = json.loads(line)
@@ -25,23 +24,23 @@ def _load_samples(path: Path) -> list[dict[str, object]]:
                 ground_truths = [ground_truths]
             if not ground_truths:
                 continue
-            samples.append({"question": question, "ground_truths": ground_truths})
-    return samples
+            cases.append({"question": question, "ground_truths": ground_truths})
+    return cases
 
 
-def _build_dataset(samples: list[dict[str, object]], top_k: int) -> Dataset:
+def _build_dataset(cases: list[dict[str, object]], top_k: int) -> Dataset:
     questions: list[str] = []
     answers: list[str] = []
     contexts: list[list[str]] = []
     ground_truths: list[list[str]] = []
 
-    for sample in samples:
-        question = sample["question"]
+    for case in cases:
+        question = case["question"]
         response = answer_question(question, top_k)
         questions.append(question)
         answers.append(response.answer)
         contexts.append([chunk.text for chunk in response.sources])
-        ground_truths.append(sample["ground_truths"])
+        ground_truths.append(case["ground_truths"])
 
     return Dataset.from_dict(
         {
@@ -54,24 +53,27 @@ def _build_dataset(samples: list[dict[str, object]], top_k: int) -> Dataset:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run RAGAS evaluation for Atlas RAG Studio")
+    parser = argparse.ArgumentParser(description="Run RAGAS evaluation for Research RAG Studio")
     parser.add_argument("--data", type=str, required=True, help="Path to JSONL eval set")
     parser.add_argument("--top-k", type=int, default=5, help="Top-k retrieved chunks")
     parser.add_argument("--output", type=str, default="backend/data/ragas_report.csv")
     args = parser.parse_args()
 
-    samples = _load_samples(Path(args.data))
-    if not samples:
-        raise SystemExit("No valid samples found in the eval file.")
+    cases = _load_cases(Path(args.data))
+    if not cases:
+        raise SystemExit("No valid cases found in the eval file.")
 
-    dataset = _build_dataset(samples, args.top_k)
+    dataset = _build_dataset(cases, args.top_k)
 
-    llm = ChatAnthropic(
-        api_key=settings.anthropic_api_key,
-        model=settings.anthropic_model,
+    llm = ChatGoogleGenerativeAI(
+        google_api_key=settings.gemini_api_key,
+        model=settings.llm_model,
         temperature=0,
     )
-    embeddings = FastEmbedEmbeddings(model_name=settings.embedding_model)
+    embeddings = GoogleGenerativeAIEmbeddings(
+        google_api_key=settings.gemini_api_key,
+        model=settings.embedding_model,
+    )
 
     results = evaluate(
         dataset,

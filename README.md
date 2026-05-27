@@ -1,18 +1,24 @@
-# Agentic RAG Studio
+# Research RAG Studio
 
-An agentic retrieval-augmented generation project designed as a portfolio-ready, production-minded demo for 2026. It includes a modern FastAPI backend, Pinecone vector search, Anthropic LLM orchestration, and a clean React interface for interactive exploration.
+Research RAG Studio is an AI research assistant that delivers grounded answers over a curated corpus of LLM, RAG, and retrieval literature. It combines hybrid retrieval, traceable reasoning steps, and Gemini-backed synthesis in a clean, modular architecture.
 
-<img width="1984" height="1551" alt="diagram-export-5-27-2026-9_34_38-AM" src="https://github.com/user-attachments/assets/ee5f2014-21fe-46f7-94ab-2f2631647315" />
+## What it solves
+- Research teams need fast, cited answers across papers, benchmarks, and technical guidance.
+- RAG systems need transparent retrieval diagnostics and reproducible evaluation.
 
+## Corpus
+- Curated set of 30+ seminal papers, benchmarks, and high-signal technical docs.
+- Stored in data/corpus/ai_research_corpus.json with rich metadata (title, authors, year, section, source type, URL).
 
-## Features
-- Agentic query flow with retrieval planning, answer synthesis, and trace output
-- Pinecone-backed semantic search with metadata-rich citations
-- Hybrid search (vector + BM25) with configurable weighting
-- Local ingestion pipeline for markdown, text, and JSON inputs
-- Streaming-ready API design and modular services
-- Frontend with sources, confidence signals, and run traces
-- RAGAS evaluation script for retrieval/answer quality
+## Retrieval approach
+- Dense retrieval via Pinecone with Gemini embeddings.
+- Local BM25 index for lexical precision.
+- Normalized score fusion with configurable alpha and traceable ranking.
+
+## Architecture overview
+- backend/app/services: ingestion, chunking, retrieval, providers, orchestration.
+- backend/app/api/routes: health, ingest, query endpoints.
+- frontend/src: research assistant UI with sources and trace panel.
 
 ## Quickstart
 ### Backend
@@ -20,8 +26,7 @@ An agentic retrieval-augmented generation project designed as a portfolio-ready,
    - `python -m venv .venv`
    - `.venv\Scripts\activate`
    - `pip install -r backend\requirements.txt`
-2. Copy env config and fill in keys
-   - `copy backend\.env.example backend\.env`
+2. Create backend/.env with required keys (see Environment Variables).
 3. Run the API
    - `uvicorn app.main:app --reload --app-dir backend`
 
@@ -29,37 +34,38 @@ An agentic retrieval-augmented generation project designed as a portfolio-ready,
 1. Install dependencies
    - `cd frontend`
    - `npm install`
-2. Configure API base URL
-   - `copy .env.example .env`
+2. Configure API base URL in frontend/.env
+   - `VITE_API_BASE_URL=http://localhost:8000`
 3. Run the app
    - `npm run dev`
 
 ## Ingestion
-Use the API to ingest local files or raw text payloads.
-- POST `/ingest`
-- POST `/query`
+- POST `/ingest` for local paths or inline documents.
+- Seed the curated corpus:
+  - `python backend\scripts\seed_corpus.py`
 
-Sample documents are provided under `data/sample`.
-
-Seed the index with the demo content:
-- `python backend\scripts\seed_demo.py`
-
-Run RAGAS evaluation:
-- `python backend\scripts\ragas_eval.py --data path\to\eval.jsonl`
+## Evaluation
+- Run batch RAGAS evaluation with a JSONL dataset:
+  - `python backend\scripts\ragas_eval.py --data path\to\eval.jsonl`
+- Output is saved to backend/data/ragas_report.csv.
+- Starter eval set: data/eval/ai_research_eval.jsonl
 
 ## Environment Variables
 Backend:
-- `ANTHROPIC_API_KEY`
-- `ANTHROPIC_MODEL`
+- `GEMINI_API_KEY`
+- `LLM_PROVIDER` (default: gemini)
+- `LLM_MODEL` (default: gemini-1.5-pro)
+- `EMBEDDING_PROVIDER` (default: gemini)
+- `EMBEDDING_MODEL` (default: models/text-embedding-004)
+- `EMBEDDING_DIM` (default: 768)
 - `PINECONE_API_KEY`
 - `PINECONE_INDEX`
 - `PINECONE_CLOUD`
 - `PINECONE_REGION`
-- `EMBEDDING_MODEL`
-- `EMBEDDING_DIM`
+- `HYBRID_SEARCH_ENABLED`
+- `HYBRID_ALPHA`
+- `BM25_K`
+- `LEXICAL_INDEX_PATH`
 
 Frontend:
 - `VITE_API_BASE_URL`
-
-## Notes
-This project is intended to be a clean, original implementation you can evolve into a fuller product demo.
