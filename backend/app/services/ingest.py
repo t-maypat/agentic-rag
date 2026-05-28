@@ -95,7 +95,10 @@ def ingest_documents(paths: list[str], documents: list[DocumentInput]) -> tuple[
                 continue
 
             chunk_texts = [chunk.text for chunk in chunks]
-            embeddings = embedding_service.embed_documents(chunk_texts)
+            embeddings = embedding_service.embed_documents(
+                chunk_texts,
+                titles=[doc.title] * len(chunk_texts),
+            )
             for chunk, embedding in zip(chunks, embeddings, strict=False):
                 vector_id = f"{doc_id}:{chunk.chunk_index}"
                 lexical_chunks.append(

@@ -1,6 +1,12 @@
+import sys
 from pathlib import Path
 
 import httpx
+
+# Ensure backend package is importable when running from repo root.
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.core.config import settings
 
@@ -16,7 +22,9 @@ def main() -> None:
 
     payload = {"paths": [str(corpus_path)], "documents": []}
     response = httpx.post(f"{API_BASE}/ingest", json=payload, timeout=120)
-    response.raise_for_status()
+    if not response.is_success:
+        print(f"Ingest failed: {response.status_code}\n{response.text}")
+        response.raise_for_status()
     print(response.json())
 
 

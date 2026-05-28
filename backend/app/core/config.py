@@ -17,8 +17,9 @@ class Settings(BaseSettings):
     pinecone_region: str = "us-east-1"
 
     embedding_provider: str = "gemini"
-    embedding_model: str = "models/text-embedding-004"
+    embedding_model: str = "gemini-embedding-001"
     embedding_dim: int = 768
+    embedding_batch_size: int = 32
 
     max_chunk_chars: int = 1200
     chunk_overlap: int = 200

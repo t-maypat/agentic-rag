@@ -1,13 +1,13 @@
 from typing import Protocol
 
-import google.generativeai as genai
-from fastembed import TextEmbedding
+from google import genai
+from google.genai import types
 
 from app.core.config import settings
 
 
 class EmbeddingProvider(Protocol):
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+    def embed_documents(self, texts: list[str], titles: list[str | None] | None = None) -> list[list[float]]:
         ...
 
     def embed_query(self, text: str) -> list[float]:
@@ -18,49 +18,70 @@ class GeminiEmbeddingProvider:
     def __init__(self, api_key: str, model_name: str) -> None:
         if not api_key:
             raise ValueError("GEMINI_API_KEY is required for Gemini embeddings.")
-        genai.configure(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
+        self.output_dimensionality = settings.embedding_dim
+        self.batch_size = settings.embedding_batch_size
 
     @staticmethod
-    def _extract_embedding(response: object) -> list[float]:
-        if isinstance(response, dict):
-            embedding = response.get("embedding")
+    def _extract_values(embedding: object) -> list[float]:
+        if isinstance(embedding, dict):
+            values = embedding.get("values") or embedding.get("embedding")
         else:
-            embedding = getattr(response, "embedding", None)
-        if embedding is None:
-            raise ValueError("Gemini embedding response missing embedding field.")
-        return list(embedding)
+            values = getattr(embedding, "values", None) or getattr(embedding, "embedding", None)
+        if values is None:
+            raise ValueError("Gemini embedding response missing vector values.")
+        return list(values)
 
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+    def _extract_embeddings(self, response: object) -> list[list[float]]:
+        if isinstance(response, dict):
+            embeddings = response.get("embeddings")
+            if embeddings is None and response.get("embedding") is not None:
+                embeddings = [response["embedding"]]
+        else:
+            embeddings = getattr(response, "embeddings", None)
+            if embeddings is None:
+                single = getattr(response, "embedding", None)
+                embeddings = [single] if single is not None else None
+        if not embeddings:
+            raise ValueError("Gemini embedding response missing embeddings.")
+        return [self._extract_values(item) for item in embeddings]
+
+    def embed_documents(self, texts: list[str], titles: list[str | None] | None = None) -> list[list[float]]:
+        if not texts:
+            return []
+        if titles is None:
+            titles = [None] * len(texts)
+
         vectors: list[list[float]] = []
-        for text in texts:
-            response = genai.embed_content(
+        for start in range(0, len(texts), self.batch_size):
+            batch_texts = texts[start : start + self.batch_size]
+            batch_titles = titles[start : start + self.batch_size]
+            response = self.client.models.embed_content(
                 model=self.model_name,
-                content=text,
-                task_type="retrieval_document",
+                contents=batch_texts,
+                config=types.EmbedContentConfig(
+                    task_type="RETRIEVAL_DOCUMENT",
+                    title=batch_titles[0] if len(batch_texts) == 1 else None,
+                    output_dimensionality=self.output_dimensionality,
+                ),
             )
-            vectors.append(self._extract_embedding(response))
+            batch_vectors = self._extract_embeddings(response)
+            if len(batch_vectors) != len(batch_texts):
+                raise ValueError("Gemini embedding response count did not match the request.")
+            vectors.extend(batch_vectors)
         return vectors
 
     def embed_query(self, text: str) -> list[float]:
-        response = genai.embed_content(
+        response = self.client.models.embed_content(
             model=self.model_name,
-            content=text,
-            task_type="retrieval_query",
+            contents=text,
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY",
+                output_dimensionality=self.output_dimensionality,
+            ),
         )
-        return self._extract_embedding(response)
-
-
-class FastEmbedProvider:
-    def __init__(self, model_name: str) -> None:
-        self.model = TextEmbedding(model_name)
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        vectors = self.model.embed(texts)
-        return [vector.tolist() for vector in vectors]
-
-    def embed_query(self, text: str) -> list[float]:
-        return self.embed_documents([text])[0]
+        return self._extract_embeddings(response)[0]
 
 
 class EmbeddingService:
@@ -71,13 +92,14 @@ class EmbeddingService:
                 settings.gemini_api_key,
                 settings.embedding_model,
             )
-        elif provider == "fastembed":
-            self.provider = FastEmbedProvider(settings.embedding_model)
         else:
-            raise ValueError(f"Unsupported embedding provider: {settings.embedding_provider}")
+            raise ValueError(
+                f"Unsupported embedding provider: {settings.embedding_provider}. "
+                "Supported: gemini."
+            )
 
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return self.provider.embed_documents(texts)
+    def embed_documents(self, texts: list[str], titles: list[str | None] | None = None) -> list[list[float]]:
+        return self.provider.embed_documents(texts, titles)
 
     def embed_query(self, text: str) -> list[float]:
         return self.provider.embed_query(text)
