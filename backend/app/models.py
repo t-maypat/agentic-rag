@@ -1,31 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class DocumentSection(BaseModel):
     heading: str | None = None
     text: str
-
-
-class DocumentInput(BaseModel):
-    doc_id: str | None = None
-    title: str | None = None
-    text: str = ""
-    source: str | None = None
-    authors: list[str] | None = None
-    year: int | None = None
-    source_type: str | None = None
-    url: str | None = None
-    sections: list[DocumentSection] | None = None
-
-
-class IngestRequest(BaseModel):
-    paths: list[str] = Field(default_factory=list)
-    documents: list[DocumentInput] = Field(default_factory=list)
-
-
-class IngestResponse(BaseModel):
-    ingested: int
-    chunks: int
 
 
 class QueryRequest(BaseModel):

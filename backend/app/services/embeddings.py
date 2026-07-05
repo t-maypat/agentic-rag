@@ -1,17 +1,12 @@
-from typing import Protocol
-
 from google import genai
 from google.genai import types
 
-from app.core.config import settings
-
-
-class EmbeddingProvider(Protocol):
-    def embed_documents(self, texts: list[str], titles: list[str | None] | None = None) -> list[list[float]]:
-        ...
-
-    def embed_query(self, text: str) -> list[float]:
-        ...
+from app.core.config import (
+    EMBEDDING_BATCH_SIZE,
+    EMBEDDING_DIM,
+    EMBEDDING_MODEL,
+    settings,
+)
 
 
 class GeminiEmbeddingProvider:
@@ -20,8 +15,8 @@ class GeminiEmbeddingProvider:
             raise ValueError("GEMINI_API_KEY is required for Gemini embeddings.")
         self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
-        self.output_dimensionality = settings.embedding_dim
-        self.batch_size = settings.embedding_batch_size
+        self.output_dimensionality = EMBEDDING_DIM
+        self.batch_size = EMBEDDING_BATCH_SIZE
 
     @staticmethod
     def _extract_values(embedding: object) -> list[float]:
@@ -47,16 +42,19 @@ class GeminiEmbeddingProvider:
             raise ValueError("Gemini embedding response missing embeddings.")
         return [self._extract_values(item) for item in embeddings]
 
-    def embed_documents(self, texts: list[str], titles: list[str | None] | None = None) -> list[list[float]]:
+    def embed_documents(
+        self, texts: list[str], titles: list[str | None] | None = None
+    ) -> list[list[float]]:
         if not texts:
             return []
-        if titles is None:
-            titles = [None] * len(texts)
+        resolved_titles: list[str | None] = (
+            list(titles) if titles is not None else [None] * len(texts)
+        )
 
         vectors: list[list[float]] = []
         for start in range(0, len(texts), self.batch_size):
             batch_texts = texts[start : start + self.batch_size]
-            batch_titles = titles[start : start + self.batch_size]
+            batch_titles = resolved_titles[start : start + self.batch_size]
             response = self.client.models.embed_content(
                 model=self.model_name,
                 contents=batch_texts,
@@ -86,19 +84,11 @@ class GeminiEmbeddingProvider:
 
 class EmbeddingService:
     def __init__(self) -> None:
-        provider = settings.embedding_provider.lower()
-        if provider == "gemini":
-            self.provider: EmbeddingProvider = GeminiEmbeddingProvider(
-                settings.gemini_api_key,
-                settings.embedding_model,
-            )
-        else:
-            raise ValueError(
-                f"Unsupported embedding provider: {settings.embedding_provider}. "
-                "Supported: gemini."
-            )
+        self.provider = GeminiEmbeddingProvider(settings.gemini_api_key, EMBEDDING_MODEL)
 
-    def embed_documents(self, texts: list[str], titles: list[str | None] | None = None) -> list[list[float]]:
+    def embed_documents(
+        self, texts: list[str], titles: list[str | None] | None = None
+    ) -> list[list[float]]:
         return self.provider.embed_documents(texts, titles)
 
     def embed_query(self, text: str) -> list[float]:

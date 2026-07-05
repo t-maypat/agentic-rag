@@ -1,27 +1,22 @@
-from typing import Protocol
-
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from app.core.config import settings
-
-
-class LlmProvider(Protocol):
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
-        ...
 
 
 class GeminiProvider:
     def __init__(self, api_key: str, model_name: str) -> None:
         if not api_key:
             raise ValueError("GEMINI_API_KEY is required for Gemini.")
-        genai.configure(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
-        model = genai.GenerativeModel(self.model_name, system_instruction=system_prompt)
-        response = model.generate_content(
-            user_prompt,
-            generation_config=genai.types.GenerationConfig(
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
                 temperature=0.2,
                 max_output_tokens=900,
             ),
@@ -31,14 +26,7 @@ class GeminiProvider:
 
 class LlmService:
     def __init__(self) -> None:
-        provider = settings.llm_provider.lower()
-        if provider == "gemini":
-            self.provider: LlmProvider = GeminiProvider(
-                settings.gemini_api_key,
-                settings.llm_model,
-            )
-        else:
-            raise ValueError(f"Unsupported LLM provider: {settings.llm_provider}")
+        self.provider = GeminiProvider(settings.gemini_api_key, settings.model_synth)
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         return self.provider.generate(system_prompt, user_prompt)

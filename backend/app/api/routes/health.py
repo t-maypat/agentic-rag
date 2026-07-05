@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.core.config import settings
-
+from app.retrieval.index import chunk_count, corpus_version
 
 router = APIRouter(tags=["health"])
 
@@ -10,7 +10,8 @@ router = APIRouter(tags=["health"])
 def health_check() -> dict:
     return {
         "status": "ok",
-        "environment": settings.app_env,
-        "public_ingest_enabled": settings.public_ingest_enabled,
-        "hcaptcha_enabled": settings.require_hcaptcha,
+        "corpus_version": corpus_version(),
+        "chunks": chunk_count(),
+        "web_tool": bool(settings.tavily_api_key),
+        "tracing": False,
     }

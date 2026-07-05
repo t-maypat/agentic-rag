@@ -1,3 +1,10 @@
+"""Pure text-chunking logic (no I/O, no network).
+
+Splits documents into overlapping sentence-packed chunks, respecting markdown
+section headings. Ported from the original ``services/text_splitter.py`` and kept
+free of config/SDK imports so it is trivially unit-testable.
+"""
+
 import re
 from dataclasses import dataclass
 
@@ -40,7 +47,7 @@ def _sentence_split(text: str) -> list[str]:
     compact = _compact(text)
     if not compact:
         return []
-    return [sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+", compact) if sentence.strip()]
+    return [s.strip() for s in re.split(r"(?<=[.!?])\s+", compact) if s.strip()]
 
 
 def _pack_sentences(sentences: list[str], max_chars: int, overlap: int) -> list[str]:

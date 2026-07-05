@@ -100,3 +100,10 @@ Production checklist:
 4. Configure `HCAPTCHA_SECRET_KEY` on the backend and `VITE_HCAPTCHA_SITE_KEY` on the frontend.
 5. Set `CORS_ORIGINS` to the deployed frontend domain.
 6. Rotate any Gemini or Pinecone keys that were exposed during local development.
+
+
+## Project Status & Limitations
+**Note:** While designed as a portfolio piece, the current system is purely a **Hybrid RAG** implementation. Currently, it does not use true autonomous agent workflows (e.g., LangGraph, ReAct loops, or dynamic tool use) despite the initial project naming. Future iterations will pivot to incorporate LangGraph/LlamaIndex for advanced query routing and iterative research.
+
+## Engineering Roadmap (Local)
+This repo includes a local-only roadmap in plan.md with the LangGraph node graph and performance refactor plan. It is gitignored by design.

@@ -79,19 +79,18 @@ def answer_question(query: str, top_k: int) -> QueryResponse:
         )
     )
 
-    if settings.hybrid_search_enabled:
-        trace.append(
-            TraceStep(
-                name="bm25_retrieval",
-                detail=_format_candidates(diagnostics.lexical_candidates, "bm25"),
-            )
+    trace.append(
+        TraceStep(
+            name="bm25_retrieval",
+            detail=_format_candidates(diagnostics.lexical_candidates, "bm25"),
         )
-        trace.append(
-            TraceStep(
-                name="fusion",
-                detail=_format_candidates(diagnostics.fused_candidates, "hybrid"),
-            )
+    )
+    trace.append(
+        TraceStep(
+            name="fusion",
+            detail=_format_candidates(diagnostics.fused_candidates, "hybrid"),
         )
+    )
 
     chunks = result.chunks
     trace.append(
@@ -123,7 +122,7 @@ def answer_question(query: str, top_k: int) -> QueryResponse:
     trace.append(
         TraceStep(
             name="generation",
-            detail=f"Model={settings.llm_model} | Provider={settings.llm_provider}",
+            detail=f"Model={settings.model_synth} | Provider=gemini",
         )
     )
 

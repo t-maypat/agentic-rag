@@ -1,8 +1,21 @@
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
-import { CTASection } from "./components/CTASection";
 import { queryAgent } from "./lib/api";
 import type { Message, SourceChunk, TraceStep } from "./lib/types";
+
+type LandingProps = {
+  onEnter: () => void;
+};
+
+function Landing({ onEnter }: LandingProps) {
+  return (
+    <section className="landing-shell">
+      <h1>Loupe</h1>
+      <p>A deep-research agent that shows its work.</p>
+      <button onClick={onEnter}>Enter workspace</button>
+    </section>
+  );
+}
 
 declare global {
   interface Window {
@@ -332,7 +345,7 @@ export default function App() {
   return (
     <div className="app-shell">
       {!enteredWorkspace ? (
-        <CTASection onEnter={handleEnterWorkspace} />
+        <Landing onEnter={handleEnterWorkspace} />
       ) : (
         <Workspace
           hcaptchaRef={hcaptchaRef}
