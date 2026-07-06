@@ -63,7 +63,9 @@ def test_rewrite_loop_capped(make_deps, fake_corpus):
     assert state["rewrite_count"] == budget.MAX_REWRITES
     # retrieve runs MAX_REWRITES + 1 times.
     assert len(fake_corpus.calls) == budget.MAX_REWRITES + 1
-    assert state["outcome"] == "answered"
+    # Grading never reached sufficiency within budget → refusal (§1.2.3).
+    assert state["outcome"] == "refused"
+    assert state["draft_answer"] is None
 
 
 def test_budget_exceeded_routes_to_finalize(make_deps, fake_corpus, monkeypatch):

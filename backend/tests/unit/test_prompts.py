@@ -10,6 +10,7 @@ _DUMMY = {
     "history": "H",
     "blocks": "B",
     "evidence_block": "E",
+    "claims_block": "C",
 }
 
 

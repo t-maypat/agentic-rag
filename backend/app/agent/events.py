@@ -15,6 +15,7 @@ STAGE = "stage"
 PLAN = "plan"
 EVIDENCE = "evidence"
 TOKEN = "token"
+CLAIMS = "claims"
 USAGE = "usage"
 DONE = "done"
 

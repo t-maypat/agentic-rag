@@ -36,3 +36,13 @@ class RewriteItem(BaseModel):
 
 class RewriteResult(BaseModel):
     queries: list[RewriteItem]
+
+
+class ClaimVerdict(BaseModel):
+    id: str  # "c1", … — must match the claim ids given in the prompt
+    verdict: Literal["SUPPORTED", "PARTIAL", "UNSUPPORTED"]
+    note: str = ""
+
+
+class VerifyResult(BaseModel):
+    claims: list[ClaimVerdict]

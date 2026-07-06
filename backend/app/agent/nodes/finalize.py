@@ -12,6 +12,7 @@ from app.agent.state import EvidenceChunk, QATurn, ResearchState
 from app.core.config import settings
 
 _SOURCE_TEXT_LIMIT = 400
+_UNSUPPORTED_REFUSAL_RATIO = 0.30
 
 
 def _source_lite(chunk: EvidenceChunk) -> dict[str, Any]:
@@ -31,16 +32,34 @@ def _source_lite(chunk: EvidenceChunk) -> dict[str, Any]:
     }
 
 
+def _should_refuse(state: ResearchState) -> bool:
+    """Answer contract §1.2.3: refuse when the evidence doesn't hold up."""
+    grades = state.get("grades") or {}
+    if grades and not any(grade.sufficient for grade in grades.values()):
+        return True  # grading never reached sufficiency within budget
+    claims = state.get("claims") or []
+    if claims:
+        unsupported = sum(1 for claim in claims if claim.verdict == "UNSUPPORTED")
+        if unsupported / len(claims) > _UNSUPPORTED_REFUSAL_RATIO:
+            return True
+    return False
+
+
 def _decide(state: ResearchState) -> tuple[str, str | None]:
     if state.get("route") == "redirect":
         return "redirected", state.get("redirect_message")
     if state.get("outcome") == "budget_exceeded":
         # Budget hit before a draft existed → graceful refusal (draft is None).
         return "budget_exceeded", state.get("draft_answer")
+    if state.get("outcome") == "refused":
+        # Verify could not audit the answer reliably (§4.3).
+        return "refused", None
     draft = state.get("draft_answer")
-    if draft:
-        return "answered", draft
-    return "refused", None
+    if not draft:
+        return "refused", None
+    if _should_refuse(state):
+        return "refused", None
+    return "answered", draft
 
 
 def finalize(state: ResearchState, config: NodeConfig) -> dict[str, Any]:

@@ -1,20 +1,28 @@
 """Shared fakes for agent unit tests — zero network, zero real LLM/Pinecone."""
 
-from collections.abc import Iterator
+import re
+from collections.abc import Callable, Iterator
 
 import pytest
 
 from app.agent import budget
 from app.agent.deps import AgentDeps
 from app.agent.schemas import (
+    ClaimVerdict,
     GradeItem,
     GradeResult,
     IntakeResult,
     PlanResult,
     RewriteItem,
     RewriteResult,
+    VerifyResult,
 )
 from app.agent.state import BudgetLedger, EvidenceChunk
+
+
+def _default_verdict(line: str) -> str:
+    """Strict stub judge: cited claims pass, uncited ones are unsupported."""
+    return "UNSUPPORTED" if "(cites: none)" in line else "SUPPORTED"
 
 
 class FakeLLM:
@@ -27,12 +35,14 @@ class FakeLLM:
         plan: PlanResult | None = None,
         grade_scores: list[float] | None = None,
         synth: str = "The answer is grounded [S1].",
+        verify_verdict: Callable[[str], str] | None = None,
     ) -> None:
         self.intake = intake or IntakeResult(route="research", standalone_question="")
         self.plan = plan
         # One score per grade *call* (to drive the rewrite loop); last value repeats.
         self.grade_scores = grade_scores or [1.0]
         self.synth = synth
+        self.verify_verdict = verify_verdict or _default_verdict
         self.calls: list[str] = []
         self._grade_i = 0
 
@@ -77,6 +87,15 @@ class FakeLLM:
             return RewriteResult(
                 queries=[RewriteItem(sub_question_id=i, query=f"refined {i}") for i in ids]
             )
+        if schema is VerifyResult:
+            rows = []
+            for line in prompt.splitlines():
+                match = re.match(r"\[(c\d+)\]", line.strip())
+                if match:
+                    rows.append(
+                        ClaimVerdict(id=match.group(1), verdict=self.verify_verdict(line), note="s")
+                    )
+            return VerifyResult(claims=rows)
         raise AssertionError(f"unexpected schema {schema!r}")
 
 
