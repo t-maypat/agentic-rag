@@ -131,30 +131,24 @@ class PublicAccess:
             )
         await self._verify_hcaptcha(token, client_ip(request))
 
-    def validate_query(self, query: str, top_k: int) -> None:
-        if len(query.strip()) == 0:
+    def validate_question(self, question: str) -> None:
+        if len(question.strip()) == 0:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Query is required."
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Question is required."
             )
-        if len(query) > settings.query_max_chars:
+        if len(question) > settings.question_max_chars:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Query exceeds the {settings.query_max_chars}-character limit.",
-            )
-        if top_k < 1 or top_k > settings.query_top_k_max:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"top_k must be between 1 and {settings.query_top_k_max}.",
+                detail=f"Question exceeds the {settings.question_max_chars}-character limit.",
             )
 
-    async def enforce_query_access(
+    async def enforce_research_access(
         self,
         request: Request,
-        query: str,
-        top_k: int,
+        question: str,
         captcha_token: str | None,
     ) -> None:
-        self.validate_query(query, top_k)
+        self.validate_question(question)
         self.check_rate_limit(request)
         await self.verify_captcha(request, captcha_token)
 

@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 
 class DocumentSection(BaseModel):
@@ -6,10 +8,11 @@ class DocumentSection(BaseModel):
     text: str
 
 
-class QueryRequest(BaseModel):
-    query: str
-    top_k: int = 5
-    hcaptcha_token: str | None = None
+class ResearchRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=500)
+    mode: Literal["quick", "deep"] = "quick"
+    thread_id: str | None = None
+    captcha_token: str | None = None
 
 
 class SourceChunk(BaseModel):
@@ -28,14 +31,3 @@ class SourceChunk(BaseModel):
     bm25_score: float | None = None
     bm25_score_norm: float | None = None
     text: str
-
-
-class TraceStep(BaseModel):
-    name: str
-    detail: str
-
-
-class QueryResponse(BaseModel):
-    answer: str
-    sources: list[SourceChunk]
-    trace: list[TraceStep]

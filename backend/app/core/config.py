@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     model_synth: str = "gemini-2.5-flash"
     model_control: str = "gemini-2.5-flash-lite"
 
+    # Agent
+    require_deep_approval: bool = False  # prod sets 1; HITL interrupt lands in Phase 3
+    threads_db_path: str = "data/threads.db"
+    question_max_chars: int = 500
+
     # Retrieval
     hybrid_alpha: float = 0.6
     retrieve_top_k: int = 8
@@ -43,11 +48,6 @@ class Settings(BaseSettings):
     rate_limit_requests_per_window: int = 8
     rate_limit_window_seconds: int = 300
     daily_request_limit: int = 200
-
-    # Legacy /query surface (removed in Phase 1 when /api/research lands)
-    query_max_chars: int = 500
-    query_top_k_max: int = 8
-    cache_ttl_seconds: int = 3600
 
 
 settings = Settings()  # type: ignore[call-arg]  # values sourced from env / .env
