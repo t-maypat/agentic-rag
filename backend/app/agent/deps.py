@@ -6,11 +6,12 @@ Pinecone/Gemini) simply by passing a different :class:`AgentDeps`.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from langchain_core.runnables import RunnableConfig
 
 from app.adapters.llm import LLMClient
+from app.adapters.websearch import NullSearch, WebSearch
 from app.agent.state import EvidenceChunk
 
 # Re-exported so nodes get the config type without each importing langchain_core
@@ -24,6 +25,9 @@ SearchCorpus = Callable[[str, int], list[EvidenceChunk]]
 class AgentDeps:
     llm: LLMClient
     search_corpus: SearchCorpus
+    # Deep-mode web tool; defaults to the disabled null adapter so quick-mode
+    # tests and corpus-only deployments need not construct one.
+    search_web: WebSearch = field(default_factory=NullSearch)
 
 
 def get_deps(config: RunnableConfig | None) -> AgentDeps:

@@ -120,6 +120,32 @@ class FakeCorpus:
         ]
 
 
+class FakeWebSearch:
+    """Deterministic WebSearch stub. Records queries; returns fixed web chunks."""
+
+    def __init__(
+        self, chunks: list[EvidenceChunk] | None = None, *, available: bool = True
+    ) -> None:
+        self.available = available
+        self._chunks = chunks
+        self.calls: list[str] = []
+
+    def search(self, query: str, max_results: int = 3) -> list[EvidenceChunk]:
+        self.calls.append(query)
+        if self._chunks is not None:
+            return self._chunks
+        return [
+            EvidenceChunk(
+                id=f"web-{len(self.calls)}",
+                doc_title="Example blog",
+                url="https://example.com/rag",
+                text="A web article about retrieval-augmented generation.",
+                origin="web",
+                scores={"dense": None, "bm25": None, "fused": 0.5},
+            )
+        ]
+
+
 @pytest.fixture
 def fake_llm() -> FakeLLM:
     return FakeLLM()
@@ -132,7 +158,9 @@ def fake_corpus() -> FakeCorpus:
 
 @pytest.fixture
 def make_deps():
-    def _make(llm: FakeLLM, corpus: FakeCorpus) -> AgentDeps:
-        return AgentDeps(llm=llm, search_corpus=corpus)
+    def _make(llm: FakeLLM, corpus: FakeCorpus, web: FakeWebSearch | None = None) -> AgentDeps:
+        if web is None:
+            return AgentDeps(llm=llm, search_corpus=corpus)
+        return AgentDeps(llm=llm, search_corpus=corpus, search_web=web)
 
     return _make

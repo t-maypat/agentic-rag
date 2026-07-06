@@ -12,19 +12,11 @@ from typing import Any
 from app.agent import events
 from app.agent.deps import NodeConfig, get_deps
 from app.agent.errors import NodeOutputError
+from app.agent.render import render_evidence
 from app.agent.schemas import VerifyResult
 from app.agent.segment import cited_source_ids, segment_claims
 from app.agent.state import ClaimAudit, EvidenceChunk, ResearchState
 from app.prompts import registry
-
-
-def _render_evidence(sources: list[EvidenceChunk]) -> str:
-    blocks: list[str] = []
-    for chunk in sources:
-        section = f" — {chunk.section}" if chunk.section else ""
-        header = f"[{chunk.source_id}] {chunk.doc_title}{section} ({chunk.origin})"
-        blocks.append(f"{header}\n{chunk.text}")
-    return "\n\n".join(blocks)
 
 
 def _render_claims(claim_texts: list[str], valid_ids: set[str]) -> str:
@@ -84,7 +76,7 @@ def verify(state: ResearchState, config: NodeConfig) -> dict[str, Any]:
     prompt = registry.get("verify")
     rendered = prompt.render(
         claims_block=_render_claims(claim_texts, valid_ids),
-        evidence_block=_render_evidence(sources),
+        evidence_block=render_evidence(sources),
     )
 
     try:

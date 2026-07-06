@@ -1,6 +1,8 @@
 """POST /api/research → text/event-stream (REVAMP_PLAN §6).
 
-Phase 1 streams the quick/deep corpus flow (no HITL interrupt, no claim audit).
+Streams the quick/deep corpus+web flow. In Deep mode with ``REQUIRE_DEEP_APPROVAL``
+the graph pauses at the approve node (HITL); the stream ends with an ``interrupt``
+event and the client resumes via ``POST /api/research/{thread_id}/approve``.
 The graph emits SSE-shaped custom events; :func:`app.sse.to_sse` serializes them.
 """
 
@@ -8,7 +10,9 @@ import uuid
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
+from langgraph.types import Command
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from app.agent.runtime import get_deps, get_graph
@@ -19,6 +23,23 @@ from app.security.access import public_access
 from app.sse import to_sse
 
 router = APIRouter(prefix="/research", tags=["research"])
+
+
+class ApproveRequest(BaseModel):
+    approved: bool
+
+
+def _pending_interrupt(graph, config: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the payload of a pending HITL interrupt for a thread, else None."""
+    snapshot = graph.get_state(config)
+    if not snapshot:
+        return None
+    for task in snapshot.tasks:
+        for intr in task.interrupts:
+            value = intr.value
+            if isinstance(value, dict):
+                return value
+    return None
 
 
 def _replay(cached: CachedResponse) -> AsyncIterator[Mapping[str, Any]]:
@@ -40,19 +61,27 @@ def _replay(cached: CachedResponse) -> AsyncIterator[Mapping[str, Any]]:
 
 
 def _live(
-    graph, state: dict[str, Any], config: dict[str, Any], cache_key: str
+    graph,
+    graph_input: Any,
+    config: dict[str, Any],
+    cache_key: str | None,
 ) -> AsyncIterator[Mapping[str, Any]]:
     async def gen() -> AsyncIterator[Mapping[str, Any]]:
         usage: dict[str, Any] = {}
         done: dict[str, Any] | None = None
-        async for chunk in graph.astream(state, config, stream_mode="custom"):
+        async for chunk in graph.astream(graph_input, config, stream_mode="custom"):
             event = chunk.get("event")
             if event == "usage":
                 usage = dict(chunk.get("data", {}))
             elif event == "done":
                 done = dict(chunk.get("data", {}))
             yield chunk
-        if done is not None:
+        if done is None:
+            # No terminal event → the run paused at the HITL approval interrupt.
+            payload = _pending_interrupt(graph, config)
+            if payload is not None:
+                yield {"event": "interrupt", "data": payload}
+        elif cache_key is not None:
             response_cache.set(
                 cache_key,
                 CachedResponse(
@@ -88,7 +117,27 @@ async def research(payload: ResearchRequest, request: Request) -> EventSourceRes
     graph = get_graph()
     config = {"configurable": {"thread_id": thread_id, "deps": get_deps()}}
     state = {"question": payload.question, "mode": payload.mode}
-    chunks = _live(graph, state, config, cache_key)
+    # Fresh threads may cache; follow-ups (thread_id supplied) depend on state.
+    key = cache_key if payload.thread_id is None else None
+    chunks = _live(graph, state, config, key)
+    return EventSourceResponse(to_sse(accepted, chunks), ping=10, headers=_SSE_HEADERS)
+
+
+@router.post("/{thread_id}/approve")
+async def approve_research(thread_id: str, payload: ApproveRequest) -> EventSourceResponse:
+    """Resume a Deep-mode run paused at the HITL approval interrupt (§6)."""
+    graph = get_graph()
+    config = {"configurable": {"thread_id": thread_id, "deps": get_deps()}}
+
+    if _pending_interrupt(graph, config) is None:
+        raise HTTPException(status_code=404, detail="No pending approval for this thread.")
+
+    snapshot = graph.get_state(config)
+    mode = snapshot.values.get("mode", "deep")
+    accepted = {"thread_id": thread_id, "mode": mode, "corpus_version": corpus_version()}
+
+    resume = Command(resume={"approved": payload.approved})
+    chunks = _live(graph, resume, config, None)
     return EventSourceResponse(to_sse(accepted, chunks), ping=10, headers=_SSE_HEADERS)
 
 

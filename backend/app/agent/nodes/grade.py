@@ -16,6 +16,7 @@ from app.agent.errors import BudgetExceeded
 from app.agent.schemas import GradeResult
 from app.agent.state import EvidenceGrade, ResearchState
 from app.prompts import registry
+from app.security.sanitize import wrap_web_evidence
 
 _SUFFICIENT = 0.6
 _GRADE_TEXT_LIMIT = 500
@@ -30,6 +31,8 @@ def _render_blocks(state: ResearchState) -> str:
             blocks.append("  (no evidence retrieved)")
         for chunk in chunks:
             text = chunk.text[:_GRADE_TEXT_LIMIT].replace("\n", " ")
+            if chunk.origin == "web":
+                text = wrap_web_evidence(text, chunk.url)
             blocks.append(f"  - {chunk.doc_title}: {text}")
         blocks.append("")
     return "\n".join(blocks)

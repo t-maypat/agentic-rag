@@ -14,6 +14,7 @@ from langgraph.config import get_stream_writer
 STAGE = "stage"
 PLAN = "plan"
 EVIDENCE = "evidence"
+INTERRUPT = "interrupt"
 TOKEN = "token"
 CLAIMS = "claims"
 USAGE = "usage"

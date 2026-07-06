@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     model_control: str = "gemini-2.5-flash-lite"
 
     # Agent
-    require_deep_approval: bool = False  # prod sets 1; HITL interrupt lands in Phase 3
+    require_deep_approval: bool = False  # HITL gate for deep web research; prod sets 1
     threads_db_path: str = "data/threads.db"
     question_max_chars: int = 500
 

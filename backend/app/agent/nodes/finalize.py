@@ -52,8 +52,9 @@ def _decide(state: ResearchState) -> tuple[str, str | None]:
         # Budget hit before a draft existed → graceful refusal (draft is None).
         return "budget_exceeded", state.get("draft_answer")
     if state.get("outcome") == "refused":
-        # Verify could not audit the answer reliably (§4.3).
-        return "refused", None
+        # A preset refusal: web research declined carries an explanatory message
+        # (§6); a verify audit-failure refusal (§4.3) does not (message is None).
+        return "refused", state.get("redirect_message")
     draft = state.get("draft_answer")
     if not draft:
         return "refused", None

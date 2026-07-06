@@ -5,6 +5,7 @@ from typing import Any
 
 from app.agent import events
 from app.agent.deps import NodeConfig, get_deps
+from app.agent.render import render_evidence
 from app.agent.state import EvidenceChunk, ResearchState
 from app.prompts import registry
 
@@ -52,15 +53,6 @@ def _select_sources(state: ResearchState) -> list[EvidenceChunk]:
     return selected
 
 
-def _render_evidence(sources: list[EvidenceChunk]) -> str:
-    blocks: list[str] = []
-    for chunk in sources:
-        section = f" — {chunk.section}" if chunk.section else ""
-        header = f"[{chunk.source_id}] {chunk.doc_title}{section} ({chunk.origin})"
-        blocks.append(f"{header}\n{chunk.text}")
-    return "\n\n".join(blocks)
-
-
 def synthesize(state: ResearchState, config: NodeConfig) -> dict[str, Any]:
     started = time.monotonic()
     events.stage_start("synthesize")
@@ -79,7 +71,7 @@ def synthesize(state: ResearchState, config: NodeConfig) -> dict[str, Any]:
 
     prompt = registry.get("synthesize")
     rendered = prompt.render(
-        question=state["standalone_question"], evidence_block=_render_evidence(sources)
+        question=state["standalone_question"], evidence_block=render_evidence(sources)
     )
 
     parts: list[str] = []

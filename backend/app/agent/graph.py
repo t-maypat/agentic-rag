@@ -19,6 +19,7 @@ def build_graph() -> StateGraph:
 
     builder.add_node("intake", nodes.intake)
     builder.add_node("plan", nodes.plan)
+    builder.add_node("approve", nodes.approve)
     builder.add_node("retrieve", nodes.retrieve)
     builder.add_node("grade", nodes.grade)
     builder.add_node("rewrite", nodes.rewrite)
@@ -28,7 +29,8 @@ def build_graph() -> StateGraph:
 
     builder.add_edge(START, "intake")
     # intake → {plan, retrieve, finalize} via Command
-    builder.add_edge("plan", "retrieve")
+    builder.add_edge("plan", "approve")
+    # approve → {retrieve, finalize} via Command (HITL interrupt when enabled)
     builder.add_edge("retrieve", "grade")
     # grade → {rewrite, synthesize, finalize} via Command
     builder.add_edge("rewrite", "retrieve")

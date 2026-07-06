@@ -7,7 +7,8 @@ sub-question ``sq1 = standalone_question`` on first entry.
 import time
 from typing import Any
 
-from app.agent import events
+from app.agent import budget, events
+from app.agent.budget import MAX_WEB_FETCHES
 from app.agent.deps import NodeConfig, get_deps
 from app.agent.state import EvidenceChunk, ResearchState, SubQuestion
 from app.core.config import settings
@@ -41,12 +42,24 @@ def retrieve(state: ResearchState, config: NodeConfig) -> dict[str, Any]:
     if not sub_questions:
         sub_questions = [SubQuestion(id="sq1", text=state["standalone_question"])]
 
+    ledger = state["ledger"]
+    web = deps.search_web
+    web_enabled = state["mode"] == "deep" and web.available
+
     evidence = dict(state["evidence"])
     processed = 0
+    web_used = 0
     for sq in sub_questions:
         if sq.status not in ("pending", "insufficient"):
             continue
-        chunks = deps.search_corpus(sq.text, settings.retrieve_top_k)
+        chunks = list(deps.search_corpus(sq.text, settings.retrieve_top_k))
+        # Deep mode augments corpus evidence with web results, subject to the
+        # per-request fetch cap (one Tavily call == one fetch, §4.2).
+        if web_enabled and ledger.web_fetches < MAX_WEB_FETCHES:
+            web_chunks = web.search(sq.text)
+            budget.record_web_fetch(ledger)
+            web_used += 1
+            chunks.extend(web_chunks)
         evidence[sq.id] = chunks
         processed += 1
         events.emit(
@@ -56,10 +69,15 @@ def retrieve(state: ResearchState, config: NodeConfig) -> dict[str, Any]:
         )
 
     total = sum(len(chunks) for chunks in evidence.values())
+    summary = f"{processed} sub-question(s), {total} chunks"
+    if state["mode"] == "deep" and not web.available:
+        summary += " (web tool unavailable)"
+    elif web_used:
+        summary += f", {web_used} web fetch(es)"
     events.stage_end(
         "retrieve",
-        f"{processed} sub-question(s), {total} chunks",
+        summary,
         int((time.monotonic() - started) * 1000),
         iteration=iteration,
     )
-    return {"sub_questions": sub_questions, "evidence": evidence}
+    return {"sub_questions": sub_questions, "evidence": evidence, "ledger": ledger}

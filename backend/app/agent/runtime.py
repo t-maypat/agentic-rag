@@ -11,6 +11,7 @@ from typing import Any
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 from app.adapters.llm import GeminiLLM
+from app.adapters.websearch import build_web_search
 from app.agent.deps import AgentDeps
 from app.agent.graph import compile_graph
 from app.agent.tools import search_corpus
@@ -37,7 +38,11 @@ def init_runtime() -> None:
     checkpointer = SqliteSaver(conn)
     checkpointer.setup()
     _graph = compile_graph(checkpointer=checkpointer)
-    _deps = AgentDeps(llm=GeminiLLM(settings.gemini_api_key), search_corpus=search_corpus)
+    _deps = AgentDeps(
+        llm=GeminiLLM(settings.gemini_api_key),
+        search_corpus=search_corpus,
+        search_web=build_web_search(settings.tavily_api_key),
+    )
 
 
 def get_graph() -> Any:
