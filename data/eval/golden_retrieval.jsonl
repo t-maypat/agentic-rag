@@ -1,0 +1,40 @@
+{"qid": "def01", "question": "What is the Transformer architecture?", "relevant_chunk_ids": ["attention-is-all-you-need:0"], "category": "definitional"}
+{"qid": "def02", "question": "What is BERT and how is it pre-trained?", "relevant_chunk_ids": ["bert:0"], "category": "definitional"}
+{"qid": "def03", "question": "What is Dense Passage Retrieval (DPR)?", "relevant_chunk_ids": ["dpr:0"], "category": "definitional"}
+{"qid": "def04", "question": "What is BM25?", "relevant_chunk_ids": ["bm25:0"], "category": "definitional"}
+{"qid": "def05", "question": "What is Retrieval-Augmented Generation (RAG)?", "relevant_chunk_ids": ["rag:0"], "category": "definitional"}
+{"qid": "def06", "question": "What is ColBERT and its late interaction mechanism?", "relevant_chunk_ids": ["colbert:0"], "category": "definitional"}
+{"qid": "def07", "question": "What is SPLADE?", "relevant_chunk_ids": ["splade:0"], "category": "definitional"}
+{"qid": "def08", "question": "What is HyDE (Hypothetical Document Embeddings)?", "relevant_chunk_ids": ["hyde:0"], "category": "definitional"}
+{"qid": "def09", "question": "What is chain-of-thought prompting?", "relevant_chunk_ids": ["chain-of-thought:0"], "category": "definitional"}
+{"qid": "def10", "question": "What is the ReAct approach for language model agents?", "relevant_chunk_ids": ["react:0"], "category": "definitional"}
+{"qid": "cmp01", "question": "How does dense retrieval like DPR differ from BM25?", "relevant_chunk_ids": ["dpr:0", "bm25:0"], "category": "comparative"}
+{"qid": "cmp02", "question": "How does SPLADE compare to BM25 and dense embeddings?", "relevant_chunk_ids": ["splade:0", "splade:1"], "category": "comparative"}
+{"qid": "cmp03", "question": "How does ColBERT differ from a bi-encoder dense retriever like DPR?", "relevant_chunk_ids": ["colbert:0", "dpr:0"], "category": "comparative"}
+{"qid": "cmp04", "question": "How does Fusion-in-Decoder handle many retrieved passages versus a single-passage reader?", "relevant_chunk_ids": ["fid:0"], "category": "comparative"}
+{"qid": "cmp05", "question": "How does Tree of Thoughts differ from chain-of-thought reasoning?", "relevant_chunk_ids": ["tree-of-thoughts:0", "chain-of-thought:0"], "category": "comparative"}
+{"qid": "cmp06", "question": "How does hybrid search combine sparse and dense retrieval signals?", "relevant_chunk_ids": ["hybrid-search-survey:0", "pinecone-hybrid-search:0"], "category": "comparative"}
+{"qid": "cmp07", "question": "How does REALM incorporate retrieval compared with standard RAG?", "relevant_chunk_ids": ["realm:0", "rag:0"], "category": "comparative"}
+{"qid": "cmp08", "question": "How does reranking differ from first-stage retrieval?", "relevant_chunk_ids": ["rerank-cohere:0"], "category": "comparative"}
+{"qid": "cmp09", "question": "How does self-consistency improve over a single chain-of-thought sample?", "relevant_chunk_ids": ["self-consistency:0"], "category": "comparative"}
+{"qid": "cmp10", "question": "How does GPT-3 few-shot learning contrast with fine-tuned models like BERT?", "relevant_chunk_ids": ["gpt-3:0", "bert:0"], "category": "comparative"}
+{"qid": "fact01", "question": "How many parameters does GPT-3 have?", "relevant_chunk_ids": ["gpt-3:0"], "category": "specific-fact"}
+{"qid": "fact02", "question": "How many parameters does PaLM scale to?", "relevant_chunk_ids": ["palm:0"], "category": "specific-fact"}
+{"qid": "fact03", "question": "Which three factors does BM25 use for term weighting?", "relevant_chunk_ids": ["bm25:0"], "category": "specific-fact"}
+{"qid": "fact04", "question": "Which two pre-training objectives does BERT use?", "relevant_chunk_ids": ["bert:0"], "category": "specific-fact"}
+{"qid": "fact05", "question": "Which system was used to train PaLM at scale?", "relevant_chunk_ids": ["palm:0"], "category": "specific-fact"}
+{"qid": "fact06", "question": "What does FACTSCORE decompose responses into for verification?", "relevant_chunk_ids": ["factscore:0"], "category": "specific-fact"}
+{"qid": "fact07", "question": "Which metrics does RAGAS define for evaluating RAG systems?", "relevant_chunk_ids": ["ragas:0"], "category": "specific-fact"}
+{"qid": "fact08", "question": "Which ranking metrics does the information retrieval textbook define?", "relevant_chunk_ids": ["retrieval-metrics:0"], "category": "specific-fact"}
+{"qid": "fact09", "question": "What does HyDE embed for retrieval instead of the raw query?", "relevant_chunk_ids": ["hyde:0"], "category": "specific-fact"}
+{"qid": "fact10", "question": "What kind of questions does the HotpotQA dataset introduce?", "relevant_chunk_ids": ["hotpotqa:0"], "category": "specific-fact"}
+{"qid": "multi01", "question": "Which techniques help bridge vocabulary mismatch between short queries and documents?", "relevant_chunk_ids": ["hyde:0", "splade:0"], "category": "multi-hop"}
+{"qid": "multi02", "question": "What benchmarks evaluate retrievers and embedding models across many tasks?", "relevant_chunk_ids": ["beir:0", "mteb:0"], "category": "multi-hop"}
+{"qid": "multi03", "question": "Which reasoning methods expose intermediate steps that a RAG trace could surface?", "relevant_chunk_ids": ["chain-of-thought:0", "react:0", "tree-of-thoughts:0"], "category": "multi-hop"}
+{"qid": "multi04", "question": "Which approaches teach or let language models call external tools?", "relevant_chunk_ids": ["toolformer:0", "react:0"], "category": "multi-hop"}
+{"qid": "multi05", "question": "Which datasets provide multi-hop or open-domain question answering for retrieval evaluation?", "relevant_chunk_ids": ["hotpotqa:0", "natural-questions:0"], "category": "multi-hop"}
+{"qid": "unans01", "question": "What is the capital of France?", "relevant_chunk_ids": [], "category": "unanswerable-from-corpus"}
+{"qid": "unans02", "question": "How do I bake sourdough bread at home?", "relevant_chunk_ids": [], "category": "unanswerable-from-corpus"}
+{"qid": "unans03", "question": "What was Apple's quarterly revenue in 2024?", "relevant_chunk_ids": [], "category": "unanswerable-from-corpus"}
+{"qid": "unans04", "question": "Who won the 2022 FIFA World Cup?", "relevant_chunk_ids": [], "category": "unanswerable-from-corpus"}
+{"qid": "unans05", "question": "What are the common side effects of ibuprofen?", "relevant_chunk_ids": [], "category": "unanswerable-from-corpus"}

@@ -1,0 +1,38 @@
+name: Nightly Generation Eval
+
+# Judged generation eval over the full graph (live Pinecone + Gemini). Not a merge
+# gate — nondeterministic and vendor-shared judge (REVAMP_PLAN §8.3). Regressions
+# are reviewed by a human from the uploaded artifact.
+
+on:
+  # TEMPORARILY DISABLED: manual-only. To re-enable the nightly run, restore:
+  #   schedule:
+  #     - cron: "0 3 * * *" # 03:00 UTC
+  workflow_dispatch: {}
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  generation-eval:
+    runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+          enable-cache: true
+      - run: uv sync --extra dev
+      - name: Run judged generation eval (budget-capped at 150 LLM calls)
+        run: uv run python scripts/run_generation_eval.py
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generation-eval-report
+          path: eval_reports/*.json
+          if-no-files-found: warn

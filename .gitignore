@@ -22,3 +22,6 @@ context.md
 interview_prep.md
 
 REVAMP_PLAN.md
+
+# Generation eval reports (regenerated nightly)
+eval_reports/
