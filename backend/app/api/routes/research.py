@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Request
 from langgraph.types import Command
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
+from starlette.concurrency import iterate_in_threadpool
 
 from app.agent.runtime import get_deps, get_graph
 from app.cache import CachedResponse, make_key, response_cache
@@ -69,7 +70,11 @@ def _live(
     async def gen() -> AsyncIterator[Mapping[str, Any]]:
         usage: dict[str, Any] = {}
         done: dict[str, Any] | None = None
-        async for chunk in graph.astream(graph_input, config, stream_mode="custom"):
+        # The graph is compiled with the sync SqliteSaver (its async methods raise),
+        # so drive the sync stream and bridge each chunk to async via the threadpool
+        # rather than using astream, which would require an async checkpointer.
+        sync_stream = graph.stream(graph_input, config, stream_mode="custom")
+        async for chunk in iterate_in_threadpool(sync_stream):
             event = chunk.get("event")
             if event == "usage":
                 usage = dict(chunk.get("data", {}))
@@ -124,8 +129,15 @@ async def research(payload: ResearchRequest, request: Request) -> EventSourceRes
 
 
 @router.post("/{thread_id}/approve")
-async def approve_research(thread_id: str, payload: ApproveRequest) -> EventSourceResponse:
-    """Resume a Deep-mode run paused at the HITL approval interrupt (§6)."""
+async def approve_research(
+    thread_id: str, payload: ApproveRequest, request: Request
+) -> EventSourceResponse:
+    """Resume a Deep-mode run paused at the HITL approval interrupt (§6).
+
+    Rate-limited (not captcha'd, per §10.1) because resuming triggers the
+    expensive tail of the graph — retrieve/web/synthesize/verify LLM calls.
+    """
+    public_access.check_rate_limit(request)
     graph = get_graph()
     config = {"configurable": {"thread_id": thread_id, "deps": get_deps()}}
 

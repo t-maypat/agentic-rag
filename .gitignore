@@ -25,3 +25,7 @@ REVAMP_PLAN.md
 
 # Generation eval reports (regenerated nightly)
 eval_reports/
+
+# LangGraph SQLite checkpointer (ephemeral, per §5.4)
+data/threads.db
+data/threads.db-*

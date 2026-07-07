@@ -48,12 +48,33 @@ def _hash_ip(ip_address: str) -> str:
 
 
 class InMemoryRateLimiter:
-    """Single-instance sliding-window + daily-cap limiter (resets on restart)."""
+    """Single-instance limiter (resets on restart) with three independent gates:
+
+    1. per-IP short burst window (``rate_limit_requests_per_window`` / window),
+    2. per-IP daily cap (``daily_request_limit``),
+    3. an aggregate daily kill-switch across all clients
+       (``global_daily_request_limit``) that bounds total API spend even under
+       distributed, rotating-IP abuse.
+
+    Documented limitation (§5.4): per-process, in-memory. Behind more than one
+    instance, or against attackers rotating IPs faster than the window, only the
+    global gate meaningfully caps spend — an edge WAF/CDN is the real DDoS defence.
+    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._window_hits: dict[str, deque[float]] = defaultdict(deque)
-        self._daily_hits: dict[str, int] = defaultdict(int)
+        self._ip_daily: dict[str, int] = defaultdict(int)  # key: "YYYY-MM-DD:iphash"
+        self._global_daily: dict[str, int] = defaultdict(int)  # key: "YYYY-MM-DD"
+
+    def _prune_locked(self, day_key: str) -> None:
+        """Drop counters from previous days so memory stays bounded across days."""
+        prefix = f"{day_key}:"
+        for store in (self._window_hits, self._ip_daily):
+            for stale in [k for k in store if not k.startswith(prefix)]:
+                del store[stale]
+        for stale in [d for d in self._global_daily if d != day_key]:
+            del self._global_daily[stale]
 
     def check(self, key: str) -> int | None:
         """Return None if allowed, else a Retry-After hint in seconds."""
@@ -63,18 +84,24 @@ class InMemoryRateLimiter:
         scoped_key = f"{day_key}:{key}"
 
         with self._lock:
+            self._prune_locked(day_key)
+
+            # Aggregate spend ceiling first: once tripped, everyone is shed.
+            if self._global_daily[day_key] >= settings.global_daily_request_limit:
+                return settings.rate_limit_window_seconds
+
             bucket = self._window_hits[scoped_key]
             while bucket and bucket[0] <= cutoff:
                 bucket.popleft()
-
             if len(bucket) >= settings.rate_limit_requests_per_window:
                 return max(1, int(settings.rate_limit_window_seconds - (now - bucket[0])))
 
-            if self._daily_hits[day_key] >= settings.daily_request_limit:
+            if self._ip_daily[scoped_key] >= settings.daily_request_limit:
                 return settings.rate_limit_window_seconds
 
             bucket.append(now)
-            self._daily_hits[day_key] += 1
+            self._ip_daily[scoped_key] += 1
+            self._global_daily[day_key] += 1
             return None
 
 
