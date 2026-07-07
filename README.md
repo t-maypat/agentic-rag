@@ -20,6 +20,61 @@ Research RAG Studio is an AI research assistant that delivers grounded answers o
 - backend/app/api/routes: health, ingest, query endpoints.
 - frontend/src: research assistant UI with sources and trace panel.
 
+## Run with Docker (one command)
+
+The whole app runs locally with Docker Compose. The frontend is served by nginx,
+which also proxies `/api` to the backend — so everything is same-origin.
+
+1. Create `backend/.env` from `backend/.env.example` and fill in `GEMINI_API_KEY`
+   (and `PINECONE_API_KEY` for dense retrieval; Tavily and Langfuse keys are
+   optional).
+2. Build and start:
+   - `docker compose up --build`
+3. Open http://localhost:8080
+
+The committed corpus index (`data/index/chunks.jsonl`) ships in the image, so no
+ingest step is needed. The LangGraph checkpointer DB is ephemeral (lost on
+container restart) by design.
+
+## Use Loupe from Claude Desktop (MCP)
+
+Loupe is also an MCP server (`backend/mcp_server.py`, FastMCP over stdio) exposing
+two tools:
+
+- `search_corpus(query, top_k=5)` — hybrid corpus retrieval, returns evidence.
+- `research(question)` — runs the full agent (quick mode) and returns
+  `{answer_md, outcome, claims, sources}`.
+
+Add this to your Claude Desktop config (`claude_desktop_config.json`), pointing
+`cwd` at the `backend/` directory and setting the API keys in `env`:
+
+```json
+{
+  "mcpServers": {
+    "loupe": {
+      "command": "uv",
+      "args": ["run", "python", "mcp_server.py"],
+      "cwd": "/absolute/path/to/agentic-rag/backend",
+      "env": {
+        "GEMINI_API_KEY": "your-gemini-api-key",
+        "PINECONE_API_KEY": "your-pinecone-api-key"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop; the `search_corpus` and `research` tools then appear.
+Because `research` runs the graph without streaming, allow up to ~60 s per call.
+
+## Observability
+
+Set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and `LANGFUSE_HOST` to enable
+[Langfuse](https://langfuse.com) tracing: one trace per request, a span per graph
+node, and a generation per LLM call (model, tokens, latency, `prompt_id@version`).
+With the keys unset, a no-op tracer is used and `/api/health` reports
+`"tracing": false` — no network calls, no overhead.
+
 ## Quickstart
 ### Backend
 1. Create a virtual environment and install dependencies

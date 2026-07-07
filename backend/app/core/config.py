@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     pinecone_region: str = "us-east-1"
     tavily_api_key: str | None = None
 
+    # Observability (optional; all three enable Langfuse tracing — §9)
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str | None = None
+
     # Models
     model_synth: str = "gemini-2.5-flash"
     model_control: str = "gemini-2.5-flash-lite"

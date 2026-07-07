@@ -1,0 +1,32 @@
+# One-command local run: `docker compose up --build` → app at http://localhost:8080
+# (REVAMP_PLAN §13). The frontend nginx proxies /api to the backend, so the whole
+# app is same-origin and needs no CORS config for local use.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    # Provide GEMINI_API_KEY / PINECONE_API_KEY / optional TAVILY + LANGFUSE keys.
+    env_file:
+      - backend/.env
+    environment:
+      APP_ENV: production
+      # Same-origin via the nginx proxy; kept for any direct browser calls.
+      CORS_ORIGINS: http://localhost:8080
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        # Empty → requests go to "/api/..." same-origin, proxied to backend.
+        VITE_API_BASE_URL: ""
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

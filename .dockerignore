@@ -1,0 +1,19 @@
+# Effective for both image builds (compose sets build context = repo root).
+.git/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/node_modules/
+**/dist/
+**/.vite/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.env
+!**/.env.example
+# Ephemeral checkpointer DB (rebuilt at runtime).
+data/threads.db
+data/threads.db-*
+eval_reports/
+backend/tests/

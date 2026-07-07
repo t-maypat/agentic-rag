@@ -21,6 +21,14 @@ async def startup() -> None:
     init_runtime()
 
 
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    # Flush any buffered Langfuse events before the process exits (no-op if tracing off).
+    from app import observability
+
+    observability.flush()
+
+
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next) -> Response:
     response = await call_next(request)

@@ -6,6 +6,7 @@ imported for generation. Every call records token usage into the request's
 :class:`BudgetLedger` so cost/limits stay attributable.
 """
 
+import time
 from collections.abc import Iterator
 from typing import Protocol, TypeVar
 
@@ -13,6 +14,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
+from app import observability
 from app.agent import budget
 from app.agent.errors import NodeOutputError
 from app.agent.state import BudgetLedger
@@ -73,11 +75,27 @@ class GeminiLLM:
         self._client = genai.Client(api_key=api_key)
 
     @staticmethod
-    def _record(ledger: BudgetLedger, response: object) -> None:
+    def _record(
+        ledger: BudgetLedger,
+        response: object,
+        *,
+        role: Role,
+        prompt_id: str,
+        temperature: float,
+        latency_ms: int,
+    ) -> None:
         usage = getattr(response, "usage_metadata", None)
         prompt_tokens = int(getattr(usage, "prompt_token_count", 0) or 0)
         output_tokens = int(getattr(usage, "candidates_token_count", 0) or 0)
         budget.record_llm(ledger, prompt_tokens, output_tokens)
+        observability.record_generation(
+            model=_model_for(role),
+            prompt_id=prompt_id,
+            input_tokens=prompt_tokens,
+            output_tokens=output_tokens,
+            latency_ms=latency_ms,
+            temperature=temperature,
+        )
 
     def generate(
         self,
@@ -89,6 +107,7 @@ class GeminiLLM:
         temperature: float = 0.0,
         prompt_id: str = "",
     ) -> str:
+        started = time.monotonic()
         response = self._client.models.generate_content(
             model=_model_for(role),
             contents=prompt,
@@ -96,7 +115,14 @@ class GeminiLLM:
                 system_instruction=system, temperature=temperature, max_output_tokens=1200
             ),
         )
-        self._record(ledger, response)
+        self._record(
+            ledger,
+            response,
+            role=role,
+            prompt_id=prompt_id,
+            temperature=temperature,
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
         return getattr(response, "text", "") or ""
 
     def generate_stream(
@@ -109,6 +135,7 @@ class GeminiLLM:
         temperature: float = 0.3,
         prompt_id: str = "",
     ) -> Iterator[str]:
+        started = time.monotonic()
         stream = self._client.models.generate_content_stream(
             model=_model_for(role),
             contents=prompt,
@@ -124,7 +151,14 @@ class GeminiLLM:
                 yield text
         # Token usage on streams is only reliable on the final chunk.
         if last is not None:
-            self._record(ledger, last)
+            self._record(
+                ledger,
+                last,
+                role=role,
+                prompt_id=prompt_id,
+                temperature=temperature,
+                latency_ms=int((time.monotonic() - started) * 1000),
+            )
 
     def generate_json(
         self,
@@ -138,6 +172,7 @@ class GeminiLLM:
         prompt_id: str = "",
     ) -> T:
         def _call(extra: str) -> T:
+            started = time.monotonic()
             response = self._client.models.generate_content(
                 model=_model_for(role),
                 contents=prompt + extra,
@@ -149,7 +184,14 @@ class GeminiLLM:
                     max_output_tokens=1600,
                 ),
             )
-            self._record(ledger, response)
+            self._record(
+                ledger,
+                response,
+                role=role,
+                prompt_id=prompt_id,
+                temperature=temperature,
+                latency_ms=int((time.monotonic() - started) * 1000),
+            )
             parsed = getattr(response, "parsed", None)
             if isinstance(parsed, schema):
                 return parsed

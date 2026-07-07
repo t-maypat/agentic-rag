@@ -14,8 +14,9 @@ from fastapi import APIRouter, HTTPException, Request
 from langgraph.types import Command
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
-from starlette.concurrency import iterate_in_threadpool
+from starlette.concurrency import iterate_in_threadpool, run_in_threadpool
 
+from app import observability
 from app.agent.runtime import get_deps, get_graph
 from app.cache import CachedResponse, make_key, response_cache
 from app.models import ResearchRequest
@@ -43,20 +44,25 @@ def _pending_interrupt(graph, config: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
-def _replay(cached: CachedResponse) -> AsyncIterator[Mapping[str, Any]]:
+def _replay(cached: CachedResponse, trace_meta: dict[str, Any]) -> AsyncIterator[Mapping[str, Any]]:
     async def gen() -> AsyncIterator[Mapping[str, Any]]:
-        if cached.answer_md:
-            yield {"event": "token", "data": {"text": cached.answer_md}}
-        yield {"event": "usage", "data": cached.usage}
-        yield {
-            "event": "done",
-            "data": {
-                "outcome": cached.outcome,
-                "answer_md": cached.answer_md,
-                "sources": cached.sources,
-                "cached": True,
-            },
-        }
+        trace = observability.start_trace(**trace_meta)
+        try:
+            if cached.answer_md:
+                yield {"event": "token", "data": {"text": cached.answer_md}}
+            yield {"event": "usage", "data": cached.usage}
+            yield {
+                "event": "done",
+                "data": {
+                    "outcome": cached.outcome,
+                    "answer_md": cached.answer_md,
+                    "sources": cached.sources,
+                    "cached": True,
+                },
+            }
+        finally:
+            observability.end_trace(trace, outcome=cached.outcome, usage=cached.usage or None)
+            await run_in_threadpool(observability.flush)
 
     return gen()
 
@@ -66,36 +72,46 @@ def _live(
     graph_input: Any,
     config: dict[str, Any],
     cache_key: str | None,
+    trace_meta: dict[str, Any],
 ) -> AsyncIterator[Mapping[str, Any]]:
     async def gen() -> AsyncIterator[Mapping[str, Any]]:
+        # start_trace sets the active-trace contextvar in THIS async context; the
+        # threadpool workers driving the sync stream inherit a copy of it, so the
+        # per-node spans emitted inside the graph attach to this request's trace.
+        trace = observability.start_trace(**trace_meta)
         usage: dict[str, Any] = {}
         done: dict[str, Any] | None = None
-        # The graph is compiled with the sync SqliteSaver (its async methods raise),
-        # so drive the sync stream and bridge each chunk to async via the threadpool
-        # rather than using astream, which would require an async checkpointer.
-        sync_stream = graph.stream(graph_input, config, stream_mode="custom")
-        async for chunk in iterate_in_threadpool(sync_stream):
-            event = chunk.get("event")
-            if event == "usage":
-                usage = dict(chunk.get("data", {}))
-            elif event == "done":
-                done = dict(chunk.get("data", {}))
-            yield chunk
-        if done is None:
-            # No terminal event → the run paused at the HITL approval interrupt.
-            payload = _pending_interrupt(graph, config)
-            if payload is not None:
-                yield {"event": "interrupt", "data": payload}
-        elif cache_key is not None:
-            response_cache.set(
-                cache_key,
-                CachedResponse(
-                    answer_md=done.get("answer_md"),
-                    outcome=done.get("outcome", "answered"),
-                    sources=done.get("sources", []),
-                    usage=usage,
-                ),
-            )
+        try:
+            # The graph is compiled with the sync SqliteSaver (its async methods raise),
+            # so drive the sync stream and bridge each chunk to async via the threadpool
+            # rather than using astream, which would require an async checkpointer.
+            sync_stream = graph.stream(graph_input, config, stream_mode="custom")
+            async for chunk in iterate_in_threadpool(sync_stream):
+                event = chunk.get("event")
+                if event == "usage":
+                    usage = dict(chunk.get("data", {}))
+                elif event == "done":
+                    done = dict(chunk.get("data", {}))
+                yield chunk
+            if done is None:
+                # No terminal event → the run paused at the HITL approval interrupt.
+                payload = _pending_interrupt(graph, config)
+                if payload is not None:
+                    yield {"event": "interrupt", "data": payload}
+            elif cache_key is not None:
+                response_cache.set(
+                    cache_key,
+                    CachedResponse(
+                        answer_md=done.get("answer_md"),
+                        outcome=done.get("outcome", "answered"),
+                        sources=done.get("sources", []),
+                        usage=usage,
+                    ),
+                )
+        finally:
+            outcome = done.get("outcome") if done else "interrupted"
+            observability.end_trace(trace, outcome=outcome, usage=usage or None)
+            await run_in_threadpool(observability.flush)
 
     return gen()
 
@@ -109,6 +125,12 @@ async def research(payload: ResearchRequest, request: Request) -> EventSourceRes
     version = corpus_version()
     thread_id = payload.thread_id or uuid.uuid4().hex
     accepted = {"thread_id": thread_id, "mode": payload.mode, "corpus_version": version}
+    trace_meta = {
+        "name": "research",
+        "thread_id": thread_id,
+        "question": payload.question,
+        "mode": payload.mode,
+    }
 
     # Exact-match cache only for fresh threads (follow-ups depend on thread state).
     cache_key = make_key(payload.question, payload.mode, version)
@@ -116,7 +138,7 @@ async def research(payload: ResearchRequest, request: Request) -> EventSourceRes
         cached = response_cache.get(cache_key)
         if cached is not None:
             return EventSourceResponse(
-                to_sse(accepted, _replay(cached)), ping=10, headers=_SSE_HEADERS
+                to_sse(accepted, _replay(cached, trace_meta)), ping=10, headers=_SSE_HEADERS
             )
 
     graph = get_graph()
@@ -124,7 +146,7 @@ async def research(payload: ResearchRequest, request: Request) -> EventSourceRes
     state = {"question": payload.question, "mode": payload.mode}
     # Fresh threads may cache; follow-ups (thread_id supplied) depend on state.
     key = cache_key if payload.thread_id is None else None
-    chunks = _live(graph, state, config, key)
+    chunks = _live(graph, state, config, key, trace_meta)
     return EventSourceResponse(to_sse(accepted, chunks), ping=10, headers=_SSE_HEADERS)
 
 
@@ -147,9 +169,15 @@ async def approve_research(
     snapshot = graph.get_state(config)
     mode = snapshot.values.get("mode", "deep")
     accepted = {"thread_id": thread_id, "mode": mode, "corpus_version": corpus_version()}
+    trace_meta = {
+        "name": "research-approve",
+        "thread_id": thread_id,
+        "question": snapshot.values.get("question", ""),
+        "mode": mode,
+    }
 
     resume = Command(resume={"approved": payload.approved})
-    chunks = _live(graph, resume, config, None)
+    chunks = _live(graph, resume, config, None, trace_meta)
     return EventSourceResponse(to_sse(accepted, chunks), ping=10, headers=_SSE_HEADERS)
 
 

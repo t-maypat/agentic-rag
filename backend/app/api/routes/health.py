@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app import observability
 from app.core.config import settings
 from app.retrieval.index import chunk_count, corpus_version
 
@@ -13,5 +14,5 @@ def health_check() -> dict:
         "corpus_version": corpus_version(),
         "chunks": chunk_count(),
         "web_tool": bool(settings.tavily_api_key),
-        "tracing": False,
+        "tracing": observability.is_enabled(),
     }
